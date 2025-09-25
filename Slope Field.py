@@ -4,7 +4,7 @@ import numpy as np
 # --- Physical measurements ---
 actual_hole_diameter = 4.25
 actual_ball_diameter = 1.68
-focal_length = 4000  # calibrate this for accuracy!
+focal_length = 2800  # calibrate this for accuracy!
 
 # --- Slope function (can customize for physics later) ---
 def slope_func(x, y):
@@ -98,20 +98,22 @@ def main():
         ball_found, hole_found = False, False
         ball_rect, hole_rect = None, None
 
+        debug_overlay = frame.copy()
+
         for c in white_contours:
             ball_found, ball_rect, ball_diam = detect_golf_ball(c)
             if ball_found:
-                cv2.drawContours(frame, [c], -1, (255, 0, 0), 2)
+                cv2.drawContours(debug_overlay, [c], -1, (255, 0, 0), 2)
                 bx, by, bw, bh = ball_rect
-                cv2.putText(frame, "Ball", (bx, by - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+                cv2.putText(debug_overlay, "Ball", (bx, by - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
                 break
 
         for c in dark_contours:
             hole_found, hole_rect, hole_diam = is_contour_a_hole(c)
             if hole_found:
-                cv2.drawContours(frame, [c], -1, (0, 255, 0), 2)
+                cv2.drawContours(debug_overlay, [c], -1, (0, 255, 0), 2)
                 hx, hy, hw, hh = hole_rect
-                cv2.putText(frame, "Hole", (hx, hy - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                cv2.putText(debug_overlay, "Hole", (hx, hy - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
                 break
 
         # Auto-select ROI if both found
@@ -126,12 +128,16 @@ def main():
             x0, y0 = max(0, x0), max(0, y0)
             x1, y1 = min(frame.shape[1], x1), min(frame.shape[0], y1)
 
-            slope_overlay = draw_slope_field(frame, (x0, y0, x1, y1))
-            cv2.imshow("Slope Field", slope_overlay)
-        else:
-            cv2.imshow("Slope Field", frame)
+            debug_overlay = draw_slope_field(debug_overlay, (x0, y0, x1, y1))
 
-        cv2.imshow("Ball/Hole Detection", frame)
+        # Build debug window view
+        white_bgr = cv2.cvtColor(white_thresh, cv2.COLOR_GRAY2BGR)
+        dark_bgr = cv2.cvtColor(dark_thresh, cv2.COLOR_GRAY2BGR)
+        top_row = np.hstack((frame, white_bgr, dark_bgr))
+        bottom_row = np.hstack((debug_overlay, debug_overlay, debug_overlay))
+        debug_window = np.vstack((top_row, bottom_row))
+
+        cv2.imshow("Debug View", debug_window)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
